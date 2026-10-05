@@ -1025,11 +1025,11 @@ void TXModuleEndpoint::registerParameters()
                 config.SetBleTrainerEnable(arg != 0);
                 BackpackTelemReadyToSend = true;
             }, luaBackpackFolder.common.id);
+      registerParameter(&luaBleTrainerMac, nullptr, luaBackpackFolder.common.id);
       registerParameter(&luaBleTrainerPair, sendCallback, luaBackpackFolder.common.id);
       registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
 
       registerParameter(&luaBackpackVersion, nullptr, luaBackpackFolder.common.id);
-      registerParameter(&luaBleTrainerMac, nullptr, luaBackpackFolder.common.id);
     }
   }
 
