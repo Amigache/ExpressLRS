@@ -305,6 +305,12 @@ static selectionParameter luaHeadTrackingStartChannel = {
     luastrHeadTrackingStart,
     STR_EMPTYSPACE};
 
+static selectionParameter luaHtSource = {
+    {"HT Source", CRSF_TEXT_SELECTION},
+    0, // value
+    "Native;BLE Trainer",
+    STR_EMPTYSPACE};
+
 static selectionParameter luaBackpackTelemetry = {
     {"Telemetry", CRSF_TEXT_SELECTION},
     0, // value
@@ -471,6 +477,7 @@ void TXModuleEndpoint::updateBackpackOpts()
   LUA_FIELD_VISIBLE(luaDvrStopDelay, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaHeadTrackingEnableChannel, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaHeadTrackingStartChannel, isBackpackEnabled);
+  LUA_FIELD_VISIBLE(luaHtSource, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackTelemetry, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackVersion, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackForgetTrainer, isBackpackEnabled);
@@ -997,6 +1004,12 @@ void TXModuleEndpoint::registerParameters()
           },
           luaBackpackFolder.common.id);
       registerParameter(
+          &luaHtSource, [](propertiesCommon *item, uint8_t arg) {
+              config.SetHtSource(arg);
+              BackpackTelemReadyToSend = true;
+          },
+          luaBackpackFolder.common.id);
+      registerParameter(
             &luaBackpackTelemetry, [](propertiesCommon *item, uint8_t arg) {
                 config.SetBackpackTlmMode(arg);
                 BackpackTelemReadyToSend = true;
@@ -1080,6 +1093,7 @@ void TXModuleEndpoint::updateParameters()
     setTextSelectionValue(&luaDvrStopDelay, config.GetBackpackDisable() ? 0 : config.GetDvrStopDelay());
     setTextSelectionValue(&luaHeadTrackingEnableChannel, config.GetBackpackDisable() ? 0 : config.GetPTREnableChannel());
     setTextSelectionValue(&luaHeadTrackingStartChannel, config.GetBackpackDisable() ? 0 : config.GetPTRStartChannel());
+    setTextSelectionValue(&luaHtSource, config.GetBackpackDisable() ? 0 : config.GetHtSource());
     setTextSelectionValue(&luaBackpackTelemetry, config.GetBackpackDisable() ? 0 : config.GetBackpackTlmMode());
     setTextSelectionValue(&luaBleTrainerEnable, config.GetBleTrainerEnable() ? 1 : 0);
     setStringValue(&luaBackpackVersion, backpackVersion);

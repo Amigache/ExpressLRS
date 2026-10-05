@@ -432,6 +432,13 @@ static void sendConfigToBackpack()
     packet.addByte(MSP_ELRS_BACKPACK_CONFIG_BLE_TRAINER); // BLE trainer enable
     packet.addByte(config.GetBleTrainerEnable() ? 1 : 0);
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
+
+    packet.reset();
+    packet.makeCommand();
+    packet.function = MSP_ELRS_BACKPACK_CONFIG;
+    packet.addByte(MSP_ELRS_BACKPACK_CONFIG_HT_SOURCE); // HT source
+    packet.addByte(config.GetHtSource());
+    MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
 
 static bool initialize()
