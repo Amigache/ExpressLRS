@@ -155,6 +155,7 @@ public:
     uint8_t  GetDvrStopDelay() const { return m_config.dvrStopDelay; }
     bool     GetBackpackDisable() const { return m_config.backpackDisable; }
     uint8_t  GetBackpackTlmMode() const { return m_config.backpackTlmMode; }
+    bool     GetBleTrainerEnable() const { return m_bleTrainerEnable; }
     tx_button_color_t const *GetButtonActions(uint8_t button) const { return &m_config.buttonColors[button]; }
     model_config_t const &GetModelConfig(uint8_t model) const { return m_config.model_config[model]; }
     uint8_t GetPTRStartChannel() const { return m_model->ptrStartChannel; }
@@ -184,6 +185,7 @@ public:
     void SetButtonActions(uint8_t button, tx_button_color_t actions[2]);
     void SetBackpackDisable(bool backpackDisable);
     void SetBackpackTlmMode(uint8_t mode);
+    void SetBleTrainerEnable(bool enable);
     void SetPTRStartChannel(uint8_t ptrStartChannel);
     void SetPTREnableChannel(uint8_t ptrEnableChannel);
     void SetUID(uint8_t uid[UID_LEN]) override;
@@ -197,6 +199,7 @@ private:
     uint32_t     m_modified;
     model_config_t *m_model;
     uint8_t     m_modelId;
+    uint8_t     m_bleTrainerEnable = 0; // module-side copy of the BLE trainer enable (NVS key "bletrainer")
 #if defined(PLATFORM_ESP32)
     nvs_handle  handle;
 #else

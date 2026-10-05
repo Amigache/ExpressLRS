@@ -311,6 +311,17 @@ static selectionParameter luaBackpackTelemetry = {
     "Off;ESPNOW;WiFi",
     STR_EMPTYSPACE};
 
+static selectionParameter luaBleTrainerEnable = {
+    {"BLE Trainer Enable", CRSF_TEXT_SELECTION},
+    0, // value
+    luastrOffOn,
+    STR_EMPTYSPACE};
+
+static commandParameter luaBleTrainerPair = {
+    {"Pair BLE Trainer", CRSF_COMMAND},
+    lcsIdle, // step
+    STR_EMPTYSPACE};
+
 static stringParameter luaBackpackVersion = {
     {"Version", CRSF_INFO},
     backpackVersion};
@@ -332,6 +343,7 @@ extern bool BackpackTelemReadyToSend;
 extern bool TxBackpackWiFiReadyToSend;
 extern bool VRxBackpackWiFiReadyToSend;
 extern bool BackpackForgetReadyToSend;
+extern bool BackpackPairReadyToSend;
 extern void setWifiUpdateMode();
 
 void TXModuleEndpoint::supressCriticalErrors()
@@ -462,6 +474,8 @@ void TXModuleEndpoint::updateBackpackOpts()
   LUA_FIELD_VISIBLE(luaBackpackTelemetry, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackVersion, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackForgetTrainer, isBackpackEnabled);
+  LUA_FIELD_VISIBLE(luaBleTrainerEnable, isBackpackEnabled);
+  LUA_FIELD_VISIBLE(luaBleTrainerPair, isBackpackEnabled);
 }
 
 void TXModuleEndpoint::updateVtxAdminOpts()
@@ -569,6 +583,11 @@ void TXModuleEndpoint::handleSimpleSendCmd(propertiesCommon *item, uint8_t arg)
     {
       msg = "Forgetting...";
       BackpackForgetReadyToSend = true;
+    }
+    else if ((void *)item == (void *)&luaBleTrainerPair && OPT_USE_TX_BACKPACK)
+    {
+      msg = "Pairing...";
+      BackpackPairReadyToSend = true;
     }
     sendCommandResponse((commandParameter *)item, lcsExecuting, msg);
   } /* if doExecute */
@@ -983,6 +1002,13 @@ void TXModuleEndpoint::registerParameters()
                 BackpackTelemReadyToSend = true;
             }, luaBackpackFolder.common.id);
 
+      registerParameter(
+            &luaBleTrainerEnable, [](propertiesCommon *item, uint8_t arg) {
+                config.SetBleTrainerEnable(arg != 0);
+                BackpackTelemReadyToSend = true;
+            }, luaBackpackFolder.common.id);
+      registerParameter(&luaBleTrainerPair, sendCallback, luaBackpackFolder.common.id);
+
       registerParameter(&luaBackpackVersion, nullptr, luaBackpackFolder.common.id);
       registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
     }
@@ -1055,6 +1081,7 @@ void TXModuleEndpoint::updateParameters()
     setTextSelectionValue(&luaHeadTrackingEnableChannel, config.GetBackpackDisable() ? 0 : config.GetPTREnableChannel());
     setTextSelectionValue(&luaHeadTrackingStartChannel, config.GetBackpackDisable() ? 0 : config.GetPTRStartChannel());
     setTextSelectionValue(&luaBackpackTelemetry, config.GetBackpackDisable() ? 0 : config.GetBackpackTlmMode());
+    setTextSelectionValue(&luaBleTrainerEnable, config.GetBleTrainerEnable() ? 1 : 0);
     setStringValue(&luaBackpackVersion, backpackVersion);
   }
   updateFolderNamesAndVisibility();

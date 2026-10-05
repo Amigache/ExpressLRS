@@ -249,6 +249,10 @@ void TxConfig::Load()
             m_config.backpackTlmMode = value8;
     }
 
+    // BLE trainer enable (module-side copy; additive NVS key, no version bump)
+    if (nvs_get_u8(handle, "bletrainer", &value8) == ESP_OK)
+        m_bleTrainerEnable = value8;
+
     for(unsigned i=0; i<CONFIG_TX_MODEL_CNT; i++)
     {
         char model[10] = "model";
@@ -464,6 +468,7 @@ TxConfig::Commit()
     {
         nvs_set_u8(handle, "backpackdisable", m_config.backpackDisable);
         nvs_set_u8(handle, "backpacktlmen", m_config.backpackTlmMode);
+        nvs_set_u8(handle, "bletrainer", m_bleTrainerEnable);
         nvs_set_u8(handle, "dvraux", m_config.dvrAux);
         nvs_set_u8(handle, "dvrstartdelay", m_config.dvrStartDelay);
         nvs_set_u8(handle, "dvrstopdelay", m_config.dvrStopDelay);
@@ -706,6 +711,16 @@ TxConfig::SetBackpackTlmMode(uint8_t mode)
 }
 
 void
+TxConfig::SetBleTrainerEnable(bool enable)
+{
+    if (m_bleTrainerEnable != enable)
+    {
+        m_bleTrainerEnable = enable;
+        m_modified |= EVENT_CONFIG_MAIN_CHANGED;
+    }
+}
+
+void
 TxConfig::SetButtonActions(uint8_t button, tx_button_color_t *action)
 {
     if (m_config.buttonColors[button].raw != action->raw) {
@@ -737,6 +752,7 @@ TxConfig::SetDefaults(bool commit)
 {
     // Reset everything to 0/false and then just set anything that zero is not appropriate
     memset(&m_config, 0, sizeof(m_config));
+    m_bleTrainerEnable = 0;
 
     m_config.version = TX_CONFIG_VERSION | TX_CONFIG_MAGIC;
     m_config.powerFanThreshold = PWR_250mW;

@@ -24,6 +24,7 @@ bool TxBackpackWiFiReadyToSend = false;
 bool VRxBackpackWiFiReadyToSend = false;
 bool BackpackTelemReadyToSend = false;
 bool BackpackForgetReadyToSend = false;
+bool BackpackPairReadyToSend = false;
 bool lastRecordingState = false;
 
 static uint16_t ptrChannelData[CRSF_NUM_CHANNELS];
@@ -197,6 +198,16 @@ static void BackpackForgetTrainerMSPOut()
     packet.reset();
     packet.makeCommand();
     packet.function = MSP_ELRS_BACKPACK_FORGET_TRAINER;
+
+    MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
+}
+
+static void BackpackTrainerPairMSPOut()
+{
+    mspPacket_t packet;
+    packet.reset();
+    packet.makeCommand();
+    packet.function = MSP_ELRS_BACKPACK_TRAINER_PAIR;
 
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
@@ -407,11 +418,19 @@ static void sendConfigToBackpack()
 {
     // Send any config values to the tx-backpack, as one key/value pair per MSP msg
     mspPacket_t packet;
+
     packet.reset();
     packet.makeCommand();
     packet.function = MSP_ELRS_BACKPACK_CONFIG;
     packet.addByte(MSP_ELRS_BACKPACK_CONFIG_TLM_MODE); // Backpack tlm mode
     packet.addByte(config.GetBackpackTlmMode());
+    MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
+
+    packet.reset();
+    packet.makeCommand();
+    packet.function = MSP_ELRS_BACKPACK_CONFIG;
+    packet.addByte(MSP_ELRS_BACKPACK_CONFIG_BLE_TRAINER); // BLE trainer enable
+    packet.addByte(config.GetBleTrainerEnable() ? 1 : 0);
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
 
@@ -484,6 +503,12 @@ static int timeout()
         {
             BackpackForgetReadyToSend = false;
             BackpackForgetTrainerMSPOut();
+        }
+
+        if (BackpackPairReadyToSend)
+        {
+            BackpackPairReadyToSend = false;
+            BackpackTrainerPairMSPOut();
         }
 
         BackpackPollAuxStates();
