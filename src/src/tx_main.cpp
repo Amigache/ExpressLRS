@@ -1057,6 +1057,10 @@ void ProcessMSPPacket(uint32_t now, mspPacket_t *packet)
     memset(backpackVersion, 0, sizeof(backpackVersion));
     memcpy(backpackVersion, packet->payload, min((size_t)packet->payloadSize, sizeof(backpackVersion)-1));
   }
+  else if (packet->function == MSP_ELRS_BACKPACK_TRAINER_SCAN)
+  {
+    crsfTransmitter.bleTrainerUpdateScanList(packet->payload, packet->payloadSize);
+  }
 #endif
 }
 

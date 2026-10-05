@@ -32,6 +32,10 @@ public:
     void registerParameters() override;
     void updateParameters() override;
 
+    // Fills the BLE trainer scan list from a backpack report and pushes the
+    // updated "Device" selection to the handset.
+    void bleTrainerUpdateScanList(const uint8_t *payload, uint8_t size);
+
     uint8_t modelId = 0; // The model ID as received from the Transmitter
 
     // Config change helpers

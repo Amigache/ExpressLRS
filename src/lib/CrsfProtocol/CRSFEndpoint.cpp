@@ -291,6 +291,14 @@ void CRSFEndpoint::registerParameter(void *definition, const parameterHandlerCal
     paramCallbacks[lastParameter] = callback;
 }
 
+void CRSFEndpoint::sendParameterUpdate(uint8_t parameterIndex)
+{
+    if (requestOrigin == CRSF_ADDRESS_BROADCAST)
+        return;
+    if (parameterIndex < MAX_CRSF_PARAMETERS && paramDefinitions[parameterIndex])
+        sendParameter(requestOrigin, CRSF_FRAMETYPE_PARAMETER_SETTINGS_ENTRY, 0, paramDefinitions[parameterIndex]);
+}
+
 void CRSFEndpoint::parameterUpdateReq(const crsf_addr_e origin, const uint8_t parameterType, const uint8_t parameterIndex, void *payload)
 {
     propertiesCommon *parameter = paramDefinitions[parameterIndex];

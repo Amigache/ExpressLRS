@@ -25,6 +25,9 @@ bool VRxBackpackWiFiReadyToSend = false;
 bool BackpackTelemReadyToSend = false;
 bool BackpackForgetReadyToSend = false;
 bool BackpackPairReadyToSend = false;
+bool BackpackScanReadyToSend = false;
+uint8_t BackpackPairMac[6] = {0};
+uint8_t BackpackPairType = 0;
 bool lastRecordingState = false;
 
 static uint16_t ptrChannelData[CRSF_NUM_CHANNELS];
@@ -202,12 +205,25 @@ static void BackpackForgetTrainerMSPOut()
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
 
+static void BackpackTrainerScanMSPOut()
+{
+    mspPacket_t packet;
+    packet.reset();
+    packet.makeCommand();
+    packet.function = MSP_ELRS_BACKPACK_TRAINER_SCAN;
+
+    MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
+}
+
 static void BackpackTrainerPairMSPOut()
 {
     mspPacket_t packet;
     packet.reset();
     packet.makeCommand();
     packet.function = MSP_ELRS_BACKPACK_TRAINER_PAIR;
+    for (int i = 0; i < 6; i++)
+        packet.addByte(BackpackPairMac[i]);
+    packet.addByte(BackpackPairType);
 
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
@@ -510,6 +526,12 @@ static int timeout()
         {
             BackpackForgetReadyToSend = false;
             BackpackForgetTrainerMSPOut();
+        }
+
+        if (BackpackScanReadyToSend)
+        {
+            BackpackScanReadyToSend = false;
+            BackpackTrainerScanMSPOut();
         }
 
         if (BackpackPairReadyToSend)

@@ -323,9 +323,24 @@ static selectionParameter luaBleTrainerEnable = {
     luastrOffOn,
     STR_EMPTYSPACE};
 
-static commandParameter luaBleTrainerPair = {
-    {"Pair BLE Trainer", CRSF_COMMAND},
+#define TRAINER_SCAN_MAX 6
+static uint8_t bleTrainerScanMac[TRAINER_SCAN_MAX][6];
+static uint8_t bleTrainerScanType[TRAINER_SCAN_MAX];
+static uint8_t bleTrainerScanCount = 0;
+static char trainerDeviceOpts[TRAINER_SCAN_MAX * 18 + 8] = "Not scanned";
+
+static folderParameter luaBleTrainerPairFolder = {
+    {"Pair BLE Trainer", CRSF_FOLDER}};
+
+static commandParameter luaBleTrainerScan = {
+    {"Scan", CRSF_COMMAND},
     lcsIdle, // step
+    STR_EMPTYSPACE};
+
+static selectionParameter luaBleTrainerDevice = {
+    {"Device", CRSF_TEXT_SELECTION},
+    0, // value
+    trainerDeviceOpts,
     STR_EMPTYSPACE};
 
 static stringParameter luaBackpackVersion = {
@@ -350,7 +365,53 @@ extern bool TxBackpackWiFiReadyToSend;
 extern bool VRxBackpackWiFiReadyToSend;
 extern bool BackpackForgetReadyToSend;
 extern bool BackpackPairReadyToSend;
+extern bool BackpackScanReadyToSend;
+extern uint8_t BackpackPairMac[6];
+extern uint8_t BackpackPairType;
 extern void setWifiUpdateMode();
+
+// Fills the device list from a scan report sent by the backpack and pushes the
+// updated "Device" selection to the handset.
+void TXModuleEndpoint::bleTrainerUpdateScanList(const uint8_t *payload, uint8_t size)
+{
+    bleTrainerScanCount = 0;
+    if (size >= 1)
+    {
+        const uint8_t count = payload[0];
+        uint8_t pos = 1;
+        for (uint8_t i = 0; i < count && i < TRAINER_SCAN_MAX; i++)
+        {
+            if (pos + 8 > size)
+                break;
+            memcpy(bleTrainerScanMac[i], &payload[pos], 6);
+            bleTrainerScanType[i] = payload[pos + 6];
+            pos += 8; // MAC(6) + type(1) + RSSI(1)
+            bleTrainerScanCount++;
+        }
+    }
+
+    if (bleTrainerScanCount == 0)
+    {
+        strcpy(trainerDeviceOpts, "None");
+    }
+    else
+    {
+        trainerDeviceOpts[0] = '\0';
+        for (uint8_t i = 0; i < bleTrainerScanCount; i++)
+        {
+            char mac[20];
+            snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+                     bleTrainerScanMac[i][0], bleTrainerScanMac[i][1], bleTrainerScanMac[i][2],
+                     bleTrainerScanMac[i][3], bleTrainerScanMac[i][4], bleTrainerScanMac[i][5]);
+            if (i)
+                strcat(trainerDeviceOpts, ";");
+            strcat(trainerDeviceOpts, mac);
+        }
+    }
+
+    setTextSelectionValue(&luaBleTrainerDevice, 0);
+    crsfTransmitter.sendParameterUpdate(luaBleTrainerDevice.common.id);
+}
 
 void TXModuleEndpoint::supressCriticalErrors()
 {
@@ -482,7 +543,7 @@ void TXModuleEndpoint::updateBackpackOpts()
   LUA_FIELD_VISIBLE(luaBackpackVersion, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackForgetTrainer, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBleTrainerEnable, isBackpackEnabled);
-  LUA_FIELD_VISIBLE(luaBleTrainerPair, isBackpackEnabled);
+  LUA_FIELD_VISIBLE(luaBleTrainerPairFolder, isBackpackEnabled);
 }
 
 void TXModuleEndpoint::updateVtxAdminOpts()
@@ -591,10 +652,10 @@ void TXModuleEndpoint::handleSimpleSendCmd(propertiesCommon *item, uint8_t arg)
       msg = "Forgetting...";
       BackpackForgetReadyToSend = true;
     }
-    else if ((void *)item == (void *)&luaBleTrainerPair && OPT_USE_TX_BACKPACK)
+    else if ((void *)item == (void *)&luaBleTrainerScan && OPT_USE_TX_BACKPACK)
     {
-      msg = "Pairing...";
-      BackpackPairReadyToSend = true;
+      msg = "Scanning...";
+      BackpackScanReadyToSend = true;
     }
     sendCommandResponse((commandParameter *)item, lcsExecuting, msg);
   } /* if doExecute */
@@ -1020,7 +1081,18 @@ void TXModuleEndpoint::registerParameters()
                 config.SetBleTrainerEnable(arg != 0);
                 BackpackTelemReadyToSend = true;
             }, luaBackpackFolder.common.id);
-      registerParameter(&luaBleTrainerPair, sendCallback, luaBackpackFolder.common.id);
+      registerParameter(&luaBleTrainerPairFolder, nullptr, luaBackpackFolder.common.id);
+      registerParameter(&luaBleTrainerScan, sendCallback, luaBleTrainerPairFolder.common.id);
+      registerParameter(
+          &luaBleTrainerDevice, [](propertiesCommon *item, uint8_t arg) {
+              if (arg < bleTrainerScanCount)
+              {
+                  memcpy(BackpackPairMac, bleTrainerScanMac[arg], 6);
+                  BackpackPairType = bleTrainerScanType[arg];
+                  BackpackPairReadyToSend = true;
+              }
+          },
+          luaBleTrainerPairFolder.common.id);
       registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
 
       registerParameter(&luaBackpackVersion, nullptr, luaBackpackFolder.common.id);
