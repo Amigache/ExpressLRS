@@ -315,6 +315,11 @@ static stringParameter luaBackpackVersion = {
     {"Version", CRSF_INFO},
     backpackVersion};
 
+static commandParameter luaBackpackForgetTrainer = {
+    {"Forget BLE Trainer", CRSF_COMMAND},
+    lcsIdle, // step
+    STR_EMPTYSPACE};
+
 //---------------------------- BACKPACK ------------------
 
 extern TxConfig config;
@@ -326,6 +331,7 @@ extern bool RxWiFiReadyToSend;
 extern bool BackpackTelemReadyToSend;
 extern bool TxBackpackWiFiReadyToSend;
 extern bool VRxBackpackWiFiReadyToSend;
+extern bool BackpackForgetReadyToSend;
 extern void setWifiUpdateMode();
 
 void TXModuleEndpoint::supressCriticalErrors()
@@ -455,6 +461,7 @@ void TXModuleEndpoint::updateBackpackOpts()
   LUA_FIELD_VISIBLE(luaHeadTrackingStartChannel, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackTelemetry, isBackpackEnabled);
   LUA_FIELD_VISIBLE(luaBackpackVersion, isBackpackEnabled);
+  LUA_FIELD_VISIBLE(luaBackpackForgetTrainer, isBackpackEnabled);
 }
 
 void TXModuleEndpoint::updateVtxAdminOpts()
@@ -557,6 +564,11 @@ void TXModuleEndpoint::handleSimpleSendCmd(propertiesCommon *item, uint8_t arg)
     else if ((void *)item == (void *)&luaVRxBackpackUpdate && OPT_USE_TX_BACKPACK)
     {
       VRxBackpackWiFiReadyToSend = true;
+    }
+    else if ((void *)item == (void *)&luaBackpackForgetTrainer && OPT_USE_TX_BACKPACK)
+    {
+      msg = "Forgetting...";
+      BackpackForgetReadyToSend = true;
     }
     sendCommandResponse((commandParameter *)item, lcsExecuting, msg);
   } /* if doExecute */
@@ -972,6 +984,7 @@ void TXModuleEndpoint::registerParameters()
             }, luaBackpackFolder.common.id);
 
       registerParameter(&luaBackpackVersion, nullptr, luaBackpackFolder.common.id);
+      registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
     }
   }
 

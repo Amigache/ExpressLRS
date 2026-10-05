@@ -23,6 +23,7 @@ extern char backpackVersion[];
 bool TxBackpackWiFiReadyToSend = false;
 bool VRxBackpackWiFiReadyToSend = false;
 bool BackpackTelemReadyToSend = false;
+bool BackpackForgetReadyToSend = false;
 bool lastRecordingState = false;
 
 static uint16_t ptrChannelData[CRSF_NUM_CHANNELS];
@@ -186,6 +187,16 @@ static void BackpackHTFlagToMSPOut(const uint8_t arg)
     packet.makeCommand();
     packet.function = MSP_ELRS_BACKPACK_SET_HEAD_TRACKING;
     packet.addByte(arg);
+
+    MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
+}
+
+static void BackpackForgetTrainerMSPOut()
+{
+    mspPacket_t packet;
+    packet.reset();
+    packet.makeCommand();
+    packet.function = MSP_ELRS_BACKPACK_FORGET_TRAINER;
 
     MSP::sendPacket(&packet, BackpackOrLogStrm); // send to tx-backpack as MSP
 }
@@ -467,6 +478,12 @@ static int timeout()
         {
             BackpackTelemReadyToSend = false;
             sendConfigToBackpack();
+        }
+
+        if (BackpackForgetReadyToSend)
+        {
+            BackpackForgetReadyToSend = false;
+            BackpackForgetTrainerMSPOut();
         }
 
         BackpackPollAuxStates();
