@@ -50,7 +50,6 @@
 #define HAS_RADIO (GPIO_PIN_SCK != UNDEF_PIN)
 
 extern char backpackVersion[];
-extern char backpackTrainerMac[];
 
 #if defined(Regulatory_Domain_EU_CE_2400)
 #if defined(RADIO_LR1121) || defined(RADIO_LR2021)
@@ -332,10 +331,6 @@ static commandParameter luaBleTrainerPair = {
 static stringParameter luaBackpackVersion = {
     {"Version", CRSF_INFO},
     backpackVersion};
-
-static stringParameter luaBleTrainerMac = {
-    {"BLE Trainer MAC", CRSF_INFO},
-    backpackTrainerMac};
 
 static commandParameter luaBackpackForgetTrainer = {
     {"Forget BLE Trainer", CRSF_COMMAND},
@@ -1025,7 +1020,6 @@ void TXModuleEndpoint::registerParameters()
                 config.SetBleTrainerEnable(arg != 0);
                 BackpackTelemReadyToSend = true;
             }, luaBackpackFolder.common.id);
-      registerParameter(&luaBleTrainerMac, nullptr, luaBackpackFolder.common.id);
       registerParameter(&luaBleTrainerPair, sendCallback, luaBackpackFolder.common.id);
       registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
 
@@ -1103,7 +1097,6 @@ void TXModuleEndpoint::updateParameters()
     setTextSelectionValue(&luaBackpackTelemetry, config.GetBackpackDisable() ? 0 : config.GetBackpackTlmMode());
     setTextSelectionValue(&luaBleTrainerEnable, config.GetBleTrainerEnable() ? 1 : 0);
     setStringValue(&luaBackpackVersion, backpackVersion);
-    setStringValue(&luaBleTrainerMac, backpackTrainerMac);
   }
   updateFolderNamesAndVisibility();
 }

@@ -38,7 +38,6 @@
 #define MSP_ELRS_BACKPACK_CONFIG_BLE_TRAINER 0x33 // config key: enable the backpack BLE trainer
 #define MSP_ELRS_BACKPACK_CONFIG_HT_SOURCE   0x34 // config key: HT source (0=Native, 1=BLE trainer)
 #define MSP_ELRS_BACKPACK_TRAINER_PAIR      0x35  // tell the TX backpack to scan and pair the BLE trainer
-#define MSP_ELRS_BACKPACK_TRAINER_MAC       0x36  // backpack -> module: paired BLE trainer MAC (6 bytes)
 
 // CRSF encapsulated msp defines
 #define ENCAPSULATED_MSP_HEADER_CRC_LEN     4
