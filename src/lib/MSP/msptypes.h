@@ -39,6 +39,7 @@
 #define MSP_ELRS_BACKPACK_CONFIG_HT_SOURCE   0x34 // config key: HT source (0=Native, 1=BLE trainer)
 #define MSP_ELRS_BACKPACK_TRAINER_PAIR      0x35  // module -> backpack: pair with the given BLE trainer (MAC 6B + type 1B)
 #define MSP_ELRS_BACKPACK_TRAINER_SCAN      0x36  // module -> backpack: scan; backpack -> module: results (count + N*(MAC 6B + type 1B + RSSI 1B))
+#define MSP_ELRS_BACKPACK_TRAINER_STATE     0x37  // backpack -> module: paired BLE trainer MAC (6 bytes, zeros = not paired)
 
 // CRSF encapsulated msp defines
 #define ENCAPSULATED_MSP_HEADER_CRC_LEN     4

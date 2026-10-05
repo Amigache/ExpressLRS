@@ -327,20 +327,22 @@ static selectionParameter luaBleTrainerEnable = {
 static uint8_t bleTrainerScanMac[TRAINER_SCAN_MAX][6];
 static uint8_t bleTrainerScanType[TRAINER_SCAN_MAX];
 static uint8_t bleTrainerScanCount = 0;
-static char trainerDeviceOpts[TRAINER_SCAN_MAX * 18 + 8] = "Not scanned";
+static uint8_t bleTrainerPairedMac[6] = {0};
+static bool bleTrainerPaired = false;
+static char trainerSelectOpts[160] = "Devices Found (0)";
 
 static folderParameter luaBleTrainerPairFolder = {
-    {"Pair BLE Trainer", CRSF_FOLDER}};
+    {"BLE Trainer Device", CRSF_FOLDER}};
 
 static commandParameter luaBleTrainerScan = {
     {"Scan", CRSF_COMMAND},
     lcsIdle, // step
     STR_EMPTYSPACE};
 
-static selectionParameter luaBleTrainerDevice = {
+static selectionParameter luaBleTrainerSelect = {
     {"Device", CRSF_TEXT_SELECTION},
     0, // value
-    trainerDeviceOpts,
+    trainerSelectOpts,
     STR_EMPTYSPACE};
 
 static stringParameter luaBackpackVersion = {
@@ -348,7 +350,7 @@ static stringParameter luaBackpackVersion = {
     backpackVersion};
 
 static commandParameter luaBackpackForgetTrainer = {
-    {"Forget BLE Trainer", CRSF_COMMAND},
+    {"Forget Device", CRSF_COMMAND},
     lcsIdle, // step
     STR_EMPTYSPACE};
 
@@ -390,27 +392,55 @@ void TXModuleEndpoint::bleTrainerUpdateScanList(const uint8_t *payload, uint8_t 
         }
     }
 
-    if (bleTrainerScanCount == 0)
+    bleTrainerBuildOptions();
+}
+
+// Builds the "Device" selection options from the current state:
+//   - paired:     "Connected to <MAC>"
+//   - not paired: "Devices Found (n)[;<MAC>;...]"
+void TXModuleEndpoint::bleTrainerBuildOptions()
+{
+    if (bleTrainerScanCount > 0)
     {
-        strcpy(trainerDeviceOpts, "None");
-    }
-    else
-    {
-        trainerDeviceOpts[0] = '\0';
+        // A scan result is being shown: list the found devices so one can be picked.
+        snprintf(trainerSelectOpts, sizeof(trainerSelectOpts), "Devices Found (%u)", bleTrainerScanCount);
         for (uint8_t i = 0; i < bleTrainerScanCount; i++)
         {
             char mac[20];
             snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
                      bleTrainerScanMac[i][0], bleTrainerScanMac[i][1], bleTrainerScanMac[i][2],
                      bleTrainerScanMac[i][3], bleTrainerScanMac[i][4], bleTrainerScanMac[i][5]);
-            if (i)
-                strcat(trainerDeviceOpts, ";");
-            strcat(trainerDeviceOpts, mac);
+            strcat(trainerSelectOpts, ";");
+            strcat(trainerSelectOpts, mac);
         }
     }
+    else if (bleTrainerPaired)
+    {
+        snprintf(trainerSelectOpts, sizeof(trainerSelectOpts), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 bleTrainerPairedMac[0], bleTrainerPairedMac[1], bleTrainerPairedMac[2],
+                 bleTrainerPairedMac[3], bleTrainerPairedMac[4], bleTrainerPairedMac[5]);
+    }
+    else
+    {
+        strcpy(trainerSelectOpts, "Devices Found (0)");
+    }
+    setTextSelectionValue(&luaBleTrainerSelect, 0);
+}
 
-    setTextSelectionValue(&luaBleTrainerDevice, 0);
-    crsfTransmitter.sendParameterUpdate(luaBleTrainerDevice.common.id);
+void TXModuleEndpoint::bleTrainerUpdatePaired(const uint8_t *payload, uint8_t size)
+{
+    if (size >= 6 && (payload[0] | payload[1] | payload[2] | payload[3] | payload[4] | payload[5]) != 0)
+    {
+        memcpy(bleTrainerPairedMac, payload, 6);
+        bleTrainerPaired = true;
+    }
+    else
+    {
+        memset(bleTrainerPairedMac, 0, 6);
+        bleTrainerPaired = false;
+        bleTrainerScanCount = 0; // drop any stale scan list
+    }
+    bleTrainerBuildOptions();
 }
 
 void TXModuleEndpoint::supressCriticalErrors()
@@ -1082,18 +1112,27 @@ void TXModuleEndpoint::registerParameters()
                 BackpackTelemReadyToSend = true;
             }, luaBackpackFolder.common.id);
       registerParameter(&luaBleTrainerPairFolder, nullptr, luaBackpackFolder.common.id);
-      registerParameter(&luaBleTrainerScan, sendCallback, luaBleTrainerPairFolder.common.id);
       registerParameter(
-          &luaBleTrainerDevice, [](propertiesCommon *item, uint8_t arg) {
-              if (arg < bleTrainerScanCount)
+          &luaBleTrainerSelect, [this](propertiesCommon *item, uint8_t arg) {
+              // arg 0 is the "Devices Found (n)" label; devices start at 1.
+              if (arg > 0 && (arg - 1) < bleTrainerScanCount)
               {
-                  memcpy(BackpackPairMac, bleTrainerScanMac[arg], 6);
-                  BackpackPairType = bleTrainerScanType[arg];
+                  const uint8_t idx = arg - 1;
+                  memcpy(BackpackPairMac, bleTrainerScanMac[idx], 6);
+                  BackpackPairType = bleTrainerScanType[idx];
                   BackpackPairReadyToSend = true;
+                  // Optimistic: show the chosen MAC immediately and drop the
+                  // scan list so the field shows the paired device. The
+                  // backpack confirms/corrects it with its state report.
+                  memcpy(bleTrainerPairedMac, bleTrainerScanMac[idx], 6);
+                  bleTrainerPaired = true;
+                  bleTrainerScanCount = 0;
+                  bleTrainerBuildOptions();
               }
           },
           luaBleTrainerPairFolder.common.id);
-      registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBackpackFolder.common.id);
+      registerParameter(&luaBleTrainerScan, sendCallback, luaBleTrainerPairFolder.common.id);
+      registerParameter(&luaBackpackForgetTrainer, sendCallback, luaBleTrainerPairFolder.common.id);
 
       registerParameter(&luaBackpackVersion, nullptr, luaBackpackFolder.common.id);
     }

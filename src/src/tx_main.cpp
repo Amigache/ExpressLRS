@@ -1061,6 +1061,10 @@ void ProcessMSPPacket(uint32_t now, mspPacket_t *packet)
   {
     crsfTransmitter.bleTrainerUpdateScanList(packet->payload, packet->payloadSize);
   }
+  else if (packet->function == MSP_ELRS_BACKPACK_TRAINER_STATE)
+  {
+    crsfTransmitter.bleTrainerUpdatePaired(packet->payload, packet->payloadSize);
+  }
 #endif
 }
 

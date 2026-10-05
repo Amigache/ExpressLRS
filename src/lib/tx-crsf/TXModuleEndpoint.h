@@ -36,6 +36,9 @@ public:
     // updated "Device" selection to the handset.
     void bleTrainerUpdateScanList(const uint8_t *payload, uint8_t size);
 
+    // Updates the paired/unpaired state reported by the backpack.
+    void bleTrainerUpdatePaired(const uint8_t *payload, uint8_t size);
+
     uint8_t modelId = 0; // The model ID as received from the Transmitter
 
     // Config change helpers
@@ -61,6 +64,7 @@ private:
     void updateTlmBandwidth();
     void updateBackpackOpts();
     void updateVtxAdminOpts();
+    void bleTrainerBuildOptions();
 };
 
 extern TXModuleEndpoint crsfTransmitter;

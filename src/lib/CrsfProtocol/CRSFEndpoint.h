@@ -103,15 +103,6 @@ protected:
     void sendCommandResponse(commandParameter *cmd, commandStep_e step, const char *message);
 
     /**
-     * Re-sends a parameter's current value to the last requesting device.
-     * Used to push updates for values changed outside of a handset write
-     * (e.g. data reported asynchronously by the backpack).
-     *
-     * @param parameterIndex The index of the parameter to update
-     */
-    void sendParameterUpdate(uint8_t parameterIndex);
-
-    /**
      * Filters a set of selectable options within a provided range and modifies
      * the input string in place.
      *
