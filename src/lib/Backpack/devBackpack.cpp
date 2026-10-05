@@ -362,16 +362,26 @@ static void BackpackPollAuxStates()
                     enable = !enable;
         }
     }
+    static uint32_t lastHTFlagSentMs = 0;
     if (enable != headTrackingEnabled)
     {
         headTrackingEnabled = enable;
         BackpackHTFlagToMSPOut(headTrackingEnabled);
+        lastHTFlagSentMs = millis();
 
         auto rcchannelsoverride_cb = (enable && config.GetPTRStartChannel() != HT_START_EDGETX) ? &headtrackOverrideChannels : nullptr;
         handset->setRcChannelsOverrideCallback(rcchannelsoverride_cb);
 
         auto rcdata_cb = (enable && config.GetPTRStartChannel() == HT_START_EDGETX) ? &headtrackPublishChannelsToEdgeTX : nullptr;
         handset->setRCDataCallback(rcdata_cb);
+    }
+    else if (headTrackingEnabled && (millis() - lastHTFlagSentMs) > 1000)
+    {
+        // Re-assert periodically: the backpack can reboot (e.g. on a Backpack
+        // Telemetry change) and lose its runtime HT-enable flag. The backpack
+        // treats a repeated enable as idempotent.
+        BackpackHTFlagToMSPOut(true);
+        lastHTFlagSentMs = millis();
     }
 
     // DVR recording enable
@@ -539,7 +549,13 @@ static int timeout()
             BackpackPairReadyToSend = false;
             BackpackTrainerPairMSPOut();
         }
+    }
 
+    // Keep the HT enable and its callbacks alive across RF connection states
+    // (noCrossfire/disconnected/awaitingModelId); only pause while the handset
+    // is repurposed (BLE joystick / WiFi update).
+    if (!config.GetBackpackDisable() && connectionState != bleJoystick && connectionState != wifiUpdate)
+    {
         BackpackPollAuxStates();
     }
 

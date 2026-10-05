@@ -1112,10 +1112,11 @@ static void HandleUARTin()
   // USB serial input
   // If a mavlink packet is received on the USB input, automatically switch the link mode to and process as mavlink
   // Otherwise, USB serial data is processed as CRSF
-  auto size = std::min(uartInputBuffer.free(), (uint16_t)TxUSB->available());
-  if (size > 0)
+  if (TxUSB->available())
   {
-    uint8_t buf[size];
+    uint8_t buf[64];
+    uint16_t size = TxUSB->available();
+    if (size > sizeof(buf)) size = sizeof(buf);
     size = TxUSB->readBytes(buf, size);
     if (connectionState > MODE_STATES) feedUSB(buf, size);
 
@@ -1131,9 +1132,14 @@ static void HandleUARTin()
     }
     if (config.GetLinkMode() == TX_MAVLINK_MODE)
     {
-      uartInputBuffer.lock();
-      uartInputBuffer.pushBytes(buf, size);
-      uartInputBuffer.unlock();
+      // Best-effort: never block reading the USB if the uplink FIFO is full.
+      const uint16_t push = std::min(uartInputBuffer.free(), size);
+      if (push)
+      {
+        uartInputBuffer.lock();
+        uartInputBuffer.pushBytes(buf, push);
+        uartInputBuffer.unlock();
+      }
     }
     else
     {
@@ -1144,34 +1150,42 @@ static void HandleUARTin()
   // Backpack serial input
   // Backpack will not switch modes, but will process data as mavlink if the link mode is already set to mavlink
   // Backpack serial data is ALSO always processed as backpack MSP
-  if (BackpackOrLogStrm != TxUSB && BackpackOrLogStrm->available())
+  if (BackpackOrLogStrm != TxUSB)
   {
-    auto size = std::min(uartInputBuffer.free(), (uint16_t)BackpackOrLogStrm->available());
-    if (size > 0)
+    // Always read and parse the backpack so MSP (e.g. SET_PTR) never depends on
+    // the RF uplink draining. MAVLink is forwarded best-effort into the uplink
+    // FIFO only when the backpack is actually forwarding it (WiFi telemetry);
+    // if the FIFO is full the excess is dropped, never blocking the read.
+    const bool forwardMavlink = (config.GetLinkMode() == TX_MAVLINK_MODE &&
+                                 config.GetBackpackTlmMode() == BACKPACK_TELEM_MODE_WIFI);
+    uint8_t buf[64];
+    while (BackpackOrLogStrm->available())
     {
-      uint8_t buf[size];
-      BackpackOrLogStrm->readBytes(buf, size);
+      uint16_t n = BackpackOrLogStrm->available();
+      if (n > sizeof(buf)) n = sizeof(buf);
+      n = BackpackOrLogStrm->readBytes(buf, n);
+      if (n == 0) break;
 
-      // If the TX is in Mavlink mode, push the bytes into the fifo buffer
-      if (config.GetLinkMode() == TX_MAVLINK_MODE)
+      // Try to parse any MSP packets from the Backpack
+      ParseMSPData(buf, n);
+
+      if (forwardMavlink)
       {
-        uartInputBuffer.lock();
-        uartInputBuffer.pushBytes(buf, size);
-        uartInputBuffer.unlock();
+        const uint16_t push = std::min(uartInputBuffer.free(), n);
+        if (push)
+        {
+          uartInputBuffer.lock();
+          uartInputBuffer.pushBytes(buf, push);
+          uartInputBuffer.unlock();
+        }
 
         // The TX is in MAVLink mode and receiving data from the Backpack,
         // start the radio since the user might be operating the module as a standalone unit without a handset.
-        if (connectionState == noCrossfire)
+        if (connectionState == noCrossfire && isThisAMavPacket(buf, n))
         {
-          if (isThisAMavPacket(buf, size))
-          {
-            UARTconnected();
-          }
+          UARTconnected();
         }
       }
-
-      // Try to parse any MSP packets from the Backpack
-      ParseMSPData(buf, size);
     }
   }
 
