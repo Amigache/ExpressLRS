@@ -61,6 +61,7 @@ extern bool webserverPreventAutoStart;
 //// MSP Data Handling ///////
 bool NextPacketIsDataUl = false;  // if true the next packet will contain the uplink data (instead of channels)
 char backpackVersion[32] = "";
+char backpackTrainerMac[18] = "";
 
 ////////////SYNC PACKET/////////
 /// sync packet spamming on mode change vars ///
@@ -1056,6 +1057,15 @@ void ProcessMSPPacket(uint32_t now, mspPacket_t *packet)
   {
     memset(backpackVersion, 0, sizeof(backpackVersion));
     memcpy(backpackVersion, packet->payload, min((size_t)packet->payloadSize, sizeof(backpackVersion)-1));
+  }
+  else if (packet->function == MSP_ELRS_BACKPACK_TRAINER_MAC)
+  {
+    const uint8_t *m = packet->payload;
+    if (packet->payloadSize >= 6 && (m[0] | m[1] | m[2] | m[3] | m[4] | m[5]) != 0)
+      snprintf(backpackTrainerMac, sizeof(backpackTrainerMac), "%02X:%02X:%02X:%02X:%02X:%02X",
+               m[0], m[1], m[2], m[3], m[4], m[5]);
+    else
+      strcpy(backpackTrainerMac, "Not paired");
   }
 #endif
 }
